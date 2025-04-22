@@ -1,98 +1,82 @@
-name: Production Deployment Approval
+name: Test SendGrid Email
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
-    types:
-      - closed
+    branches:
+      - main
 
 jobs:
-  deployment_approval:
+  sendgrid-email:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up environment variables
-        run: |
-          echo "EMAIL_FROM=devops@houzeo.com" >> $GITHUB_ENV
-          echo "EMAIL_TO=sheraj.ahamad@houzeo.com" >> $GITHUB_ENV
-          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> $GITHUB_ENV
-          echo "TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
-          echo "AUTHORIZED_APPROVERS=${{ secrets.AUTHORIZED_APPROVERS }}" >> $GITHUB_ENV
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
-          echo "PR_MERGED_BY=${{ github.event.pull_request.merged_by.login }}" >> $GITHUB_ENV
-          echo "REPO_OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
-          echo "REPO_NAME=${{ github.event.repository.name }}" >> $GITHUB_ENV
-          echo "EMAIL_SUBJECT=Nuxt Production Deployment | PR #${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          echo "TIMESTAMP_START=$(date)" >> $GITHUB_ENV
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Send email notification about deployment start (via SendGrid)
+      - name: Set environment variables
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}   # SendGrid API Key from GitHub Secrets
+          EMAIL_FROM: devops@houzeo.com                        # Sender's email
+          EMAIL_TO: sheraj.ahamad@houzeo.com                    # Recipient's email
+          EMAIL_SUBJECT: "Test Email from GitHub Actions"      # Subject of the email
         run: |
-          SENDGRID_DATA='{
-            "personalizations": [
-              {
-                "to": [{"email": "'"$EMAIL_TO"'"}],
-                "subject": "'"$EMAIL_SUBJECT"'"
-              }
-            ],
-            "from": {"email": "'"$EMAIL_FROM"'"},
-            "content": [
-              {
-                "type": "text/html",
-                "value": "Deployment has started for PR <a href=\"$PR_URL\">#${PR_NUMBER}</a><br>Merged by: <strong>${PR_MERGED_BY}</strong><br>Timestamp: <strong>${TIMESTAMP_START}</strong>"
-              }
-            ]
-          }'
-          curl --request POST \
+          echo "SENDGRID_API_KEY is set."
+          echo "EMAIL_FROM is set to $EMAIL_FROM"
+          echo "EMAIL_TO is set to $EMAIL_TO"
+
+      - name: Test SendGrid Email
+        run: |
+          echo "Sending test email to $EMAIL_TO"
+
+          curl -v --request POST \
             --url https://api.sendgrid.com/v3/mail/send \
             --header "Authorization: Bearer $SENDGRID_API_KEY" \
             --header "Content-Type: application/json" \
-            --data "$SENDGRID_DATA"
+            --data '{
+              "personalizations": [
+                {
+                  "to": [{"email": "'$EMAIL_TO'"}],
+                  "subject": "'$EMAIL_SUBJECT'"
+                }
+              ],
+              "from": {"email": "'$EMAIL_FROM'"},
+              "content": [
+                {
+                  "type": "text/plain",
+                  "value": "This is a test email to verify SendGrid API functionality."
+                }
+              ]
+            }'
 
-      - name: Create GitHub issue for approval
+      - name: Check if SendGrid request was successful
         run: |
-          ISSUE_BODY="Please approve or deny the deployment of PR <a href='$PR_URL'>#${PR_NUMBER}</a><br><ul><li>Type <strong>approved</strong></li><li>Type <strong>deny</strong></li></ul>"
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: token $TOKEN" \
-            -d "{\"title\":\"Deployment Approval for PR $PR_NUMBER\", \"body\":\"$ISSUE_BODY\"}" \
-            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues")
+          echo "Checking SendGrid API response"
+          curl -v --request POST \
+            --url https://api.sendgrid.com/v3/mail/send \
+            --header "Authorization: Bearer $SENDGRID_API_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "personalizations": [
+                {
+                  "to": [{"email": "'$EMAIL_TO'"}],
+                  "subject": "'$EMAIL_SUBJECT'"
+                }
+              ],
+              "from": {"email": "'$EMAIL_FROM'"},
+              "content": [
+                {
+                  "type": "text/plain",
+                  "value": "This is a test email to verify SendGrid API functionality."
+                }
+              ]
+            }'
           
-          ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number')
-          ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
-
-          if [ "$ISSUE_NUMBER" != "null" ]; then
-            echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
-            echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
+          # Add a success or failure condition for email response
+          if [ $? -eq 0 ]; then
+            echo "Test email sent successfully!"
           else
-            echo "Error creating GitHub issue: $RESPONSE"
+            echo "Failed to send test email."
             exit 1
           fi
-
-      - name: Send email with approval link (via SendGrid)
-        run: |
-          SENDGRID_DATA='{
-            "personalizations": [
-              {
-                "to": [{"email": "'"$EMAIL_TO"'"}],
-                "subject": "'"$EMAIL_SUBJECT"'"
-              }
-            ],
-            "from": {"email": "'"$EMAIL_FROM"'"},
-            "content": [
-              {
-                "type": "text/html",
-                "value": "Please approve or deny the deployment of PR <a href=\"$PR_URL\">#${PR_NUMBER}</a><br>Check issue <a href=\"$ISSUE_URL\">#${ISSUE_NUMBER}</a>"
-              }
-            ]
-          }'
-          curl --request POST \
-            --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
-            --header "Content-Type: application/json" \
-            --data "$SENDGRID_DATA"
-
-      - name: Wait for approval on GitHub issue
-        run: |
-          echo "Waiting for approval on issue $ISSUE_URL..."
-          # Logic to wait for approval goes here
-          # This could be a manual step or additional GitHub Actions logic based on approvals
-          approval_status="pending"
-          echo "approval_status=$approval_status" >> $GITHUB_OUTPUT
