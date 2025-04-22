@@ -1,4 +1,4 @@
-#pm2 new
+#update pipeline
 module.exports = {
   apps: [
     {
