@@ -10,7 +10,7 @@ on:
 jobs:
   manual_approval:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
-    runs-on: [self-hosted, NUXT-PROD-RUNNER]
+    runs-on: [ubuntu-latest]
     outputs:
       approval_status: ${{ steps.wait_for_approval.outputs.approval_status }}
 
