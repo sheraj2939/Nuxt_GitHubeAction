@@ -64,8 +64,24 @@ jobs:
             -H "Authorization: token $TOKEN" \
             -d "{\"title\":\"Deployment Approval for PR $PR_NUMBER\", \"body\":\"$ISSUE_BODY\"}" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues")
+
+          if [ $? -ne 0 ]; then
+            echo "Error creating issue: $RESPONSE"
+            exit 1
+          fi
+
           ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number')
           ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "Failed to extract ISSUE_NUMBER from response: $RESPONSE"
+            exit 1
+          fi
+          if [ -z "$ISSUE_URL" ]; then
+            echo "Failed to extract ISSUE_URL from response: $RESPONSE"
+            exit 1
+          fi
+
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
           echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
 
@@ -107,10 +123,18 @@ jobs:
           for i in {1..60}; do
             RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
               "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$ISSUE_NUMBER/comments")
+
+            if [ $? -ne 0 ]; then
+              echo "Error fetching comments: $RESPONSE"
+              sleep 15
+              continue
+            fi
+
             COMMENTS=$(echo "$RESPONSE" | jq -r '.[].body')
             AUTHORS=$(echo "$RESPONSE" | jq -r '.[].user.login')
             INDEX_APPROVED=$(echo "$COMMENTS" | grep -in "^approved$" | tail -1 | cut -d':' -f1)
             INDEX_DENY=$(echo "$COMMENTS" | grep -in "^deny$" | tail -1 | cut -d':' -f1)
+
             if [ -n "$INDEX_APPROVED" ]; then
               AUTHOR=$(echo "$AUTHORS" | sed -n "${INDEX_APPROVED}p")
               if [[ ",$AUTHORIZED_APPROVERS," == *",$AUTHOR,"* ]]; then
@@ -128,6 +152,7 @@ jobs:
                 break
               fi
             fi
+
             if [ "$i" -eq 7 ] && [ "$REMINDER_SENT" = false ]; then
               echo "Sending reminder email..."
               curl --request POST \
@@ -142,7 +167,7 @@ jobs:
                           "email": "'"$EMAIL_TO"'"
                         }
                       ],
-                      "subject": "Reminder: Deployment Approval for PR #'"${{ github.event.pull_request.number }}"'"
+                      "subject": "Reminder: Deployment Approval for PR #\"$PR_NUMBER\""
                     }
                   ],
                   "from": {
