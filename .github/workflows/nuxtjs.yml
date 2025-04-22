@@ -1,5 +1,4 @@
 name: Auto-pull on Nuxt Production Server, on PR merge for release-prod
-
 on:
   pull_request:
     branches:
@@ -10,10 +9,9 @@ on:
 jobs:
   manual_approval:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     outputs:
       approval_status: ${{ steps.wait_for_approval.outputs.approval_status }}
-
     env:
       EMAIL_FROM: devops@houzeo.com
       EMAIL_TO: sheraj.ahamad@houzeo.com
@@ -26,7 +24,6 @@ jobs:
       REPO_OWNER: ${{ github.event.repository.owner.login }}
       REPO_NAME: ${{ github.event.repository.name }}
       EMAIL_SUBJECT: "Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
-
     steps:
       - name: Set start timestamp
         run: echo "TIMESTAMP_START=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
@@ -37,32 +34,38 @@ jobs:
             --url https://api.sendgrid.com/v3/mail/send \
             --header "Authorization: Bearer $SENDGRID_API_KEY" \
             --header "Content-Type: application/json" \
-            --data @- <<EOF
-          {
-            "personalizations": [{
-              "to": [{"email":"$EMAIL_TO"}],
-              "subject": "$EMAIL_SUBJECT"
-            }],
-            "from": {"email":"$EMAIL_FROM"},
-            "content": [{
-              "type": "text/html",
-              "value": "Deployment has started for PR <a href='$PR_URL'>#${PR_NUMBER}</a><br>Merged by: <strong>$PR_MERGED_BY</strong><br>Timestamp: <strong>$TIMESTAMP_START</strong>"
-            }]
-          }
-          EOF
+            --data '{
+              "personalizations": [
+                {
+                  "to": [
+                    {
+                      "email": "'"$EMAIL_TO"'"
+                    }
+                  ],
+                  "subject": "'"$EMAIL_SUBJECT"'"
+                }
+              ],
+              "from": {
+                "email": "'"$EMAIL_FROM"'"
+              },
+              "content": [
+                {
+                  "type": "text/html",
+                  "value": "Deployment has started for PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br>Merged by: <strong>\"$PR_MERGED_BY\"</strong><br>Timestamp: <strong>\"$TIMESTAMP_START\"</strong>"
+                }
+              ]
+            }'
 
       - name: Create Approval Issue
         id: create_issue
         run: |
-          ISSUE_BODY="Please approve or deny the deployment of PR <a href='$PR_URL'>#${PR_NUMBER}</a><br><ul><li>Type <strong>approved</strong></li><li>Type <strong>deny</strong></li></ul>"
+          ISSUE_BODY="Please approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br><ul><li>Type <strong>approved</strong></li><li>Type <strong>deny</strong></li></ul>"
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: token $TOKEN" \
             -d "{\"title\":\"Deployment Approval for PR $PR_NUMBER\", \"body\":\"$ISSUE_BODY\"}" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues")
-
           ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number')
           ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
-
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
           echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
 
@@ -72,19 +75,27 @@ jobs:
             --url https://api.sendgrid.com/v3/mail/send \
             --header "Authorization: Bearer $SENDGRID_API_KEY" \
             --header "Content-Type: application/json" \
-            --data @- <<EOF
-          {
-            "personalizations": [{
-              "to": [{"email":"$EMAIL_TO"}],
-              "subject": "$EMAIL_SUBJECT"
-            }],
-            "from": {"email":"$EMAIL_FROM"},
-            "content": [{
-              "type": "text/html",
-              "value": "Please approve or deny the deployment of PR <a href='$PR_URL'>#${PR_NUMBER}</a><br>Check issue <a href='$ISSUE_URL'>#$ISSUE_NUMBER</a>"
-            }]
-          }
-          EOF
+            --data '{
+              "personalizations": [
+                {
+                  "to": [
+                    {
+                      "email": "'"$EMAIL_TO"'"
+                    }
+                  ],
+                  "subject": "'"$EMAIL_SUBJECT"'"
+                }
+              ],
+              "from": {
+                "email": "'"$EMAIL_FROM"'"
+              },
+              "content": [
+                {
+                  "type": "text/html",
+                  "value": "Please approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br>Check issue <a href='\"$ISSUE_URL\"'>#\"$ISSUE_NUMBER\"</a>"
+                }
+              ]
+            }'
 
       - name: Wait for Approval
         id: wait_for_approval
@@ -93,17 +104,13 @@ jobs:
           echo "approval_status=pending" >> $GITHUB_OUTPUT
           echo "Waiting for approval on issue $ISSUE_NUMBER..."
           REMINDER_SENT=false
-
           for i in {1..60}; do
             RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
               "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$ISSUE_NUMBER/comments")
-
             COMMENTS=$(echo "$RESPONSE" | jq -r '.[].body')
             AUTHORS=$(echo "$RESPONSE" | jq -r '.[].user.login')
-
             INDEX_APPROVED=$(echo "$COMMENTS" | grep -in "^approved$" | tail -1 | cut -d':' -f1)
             INDEX_DENY=$(echo "$COMMENTS" | grep -in "^deny$" | tail -1 | cut -d':' -f1)
-
             if [ -n "$INDEX_APPROVED" ]; then
               AUTHOR=$(echo "$AUTHORS" | sed -n "${INDEX_APPROVED}p")
               if [[ ",$AUTHORIZED_APPROVERS," == *",$AUTHOR,"* ]]; then
@@ -121,94 +128,34 @@ jobs:
                 break
               fi
             fi
-
             if [ "$i" -eq 7 ] && [ "$REMINDER_SENT" = false ]; then
               echo "Sending reminder email..."
               curl --request POST \
                 --url https://api.sendgrid.com/v3/mail/send \
                 --header "Authorization: Bearer $SENDGRID_API_KEY" \
                 --header "Content-Type: application/json" \
-                --data @- <<EOF
-              {
-                "personalizations": [{
-                  "to": [{"email":"$EMAIL_TO"}],
-                  "subject": "$EMAIL_SUBJECT"
-                }],
-                "from": {"email":"$EMAIL_FROM"},
-                "content": [{
-                  "type": "text/html",
-                  "value": "Reminder to approve/deny PR <a href='$PR_URL'>#${PR_NUMBER}</a>.<br>Issue: <a href='$ISSUE_URL'>#$ISSUE_NUMBER</a>"
-                }]
-              }
-              EOF
+                --data '{
+                  "personalizations": [
+                    {
+                      "to": [
+                        {
+                          "email": "'"$EMAIL_TO"'"
+                        }
+                      ],
+                      "subject": "Reminder: Deployment Approval for PR #'"${{ github.event.pull_request.number }}"'"
+                    }
+                  ],
+                  "from": {
+                    "email": "'"$EMAIL_FROM"'"
+                  },
+                  "content": [
+                    {
+                      "type": "text/html",
+                      "value": "This is a reminder to approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a>. Please check the issue <a href='\"$ISSUE_URL\"'>#\"$ISSUE_NUMBER\"</a>."
+                    }
+                  ]
+                }'
               REMINDER_SENT=true
             fi
-
             sleep 15
           done
-
-      - name: Timestamp Approval/Denial
-        run: echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-
-      - name: Notify Approval
-        if: steps.wait_for_approval.outputs.approval_status == 'approved'
-        run: |
-          curl --request POST \
-            --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
-            --header "Content-Type: application/json" \
-            --data @- <<EOF
-          {
-            "personalizations": [{
-              "to": [{"email":"$EMAIL_TO"}],
-              "subject": "$EMAIL_SUBJECT"
-            }],
-            "from": {"email":"$EMAIL_FROM"},
-            "content": [{
-              "type": "text/html",
-              "value": "Approved by: <strong>$AUTHOR</strong><br>Timestamp: <strong>$TIMESTAMP_APPROVED_DENIED</strong>"
-            }]
-          }
-          EOF
-
-      - name: Notify Denial
-        if: steps.wait_for_approval.outputs.approval_status == 'deny'
-        run: |
-          curl --request POST \
-            --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
-            --header "Content-Type: application/json" \
-            --data @- <<EOF
-          {
-            "personalizations": [{
-              "to": [{"email":"$EMAIL_TO"}],
-              "subject": "$EMAIL_SUBJECT"
-            }],
-            "from": {"email":"$EMAIL_FROM"},
-            "content": [{
-              "type": "text/html",
-              "value": "Denied by: <strong>$AUTHOR</strong><br>Timestamp: <strong>$TIMESTAMP_APPROVED_DENIED</strong>"
-            }]
-          }
-          EOF
-
-      - name: Notify Timeout
-        if: steps.wait_for_approval.outputs.approval_status == 'pending'
-        run: |
-          curl --request POST \
-            --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
-            --header "Content-Type: application/json" \
-            --data @- <<EOF
-          {
-            "personalizations": [{
-              "to": [{"email":"$EMAIL_TO"}],
-              "subject": "$EMAIL_SUBJECT"
-            }],
-            "from": {"email":"$EMAIL_FROM"},
-            "content": [{
-              "type": "text/html",
-              "value": "Approval Timeout for PR <a href='$PR_URL'>#${PR_NUMBER}</a><br>Merged by: <strong>$PR_MERGED_BY</strong>"
-            }]
-          }
-          EOF
