@@ -50,6 +50,7 @@ jobs:
             }]
           }
           EOF
+
       - name: Create Approval Issue
         id: create_issue
         run: |
@@ -58,10 +59,11 @@ jobs:
             -H "Authorization: token $TOKEN" \
             -d "{\"title\":\"Deployment Approval for PR $PR_NUMBER\", \"body\":\"$ISSUE_BODY\"}" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues")
-          ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number')
-          ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+          ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number // empty')
+          ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url // empty')
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
           echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
+
       - name: Send Approval Email via SendGrid
         run: |
           curl --request POST \
@@ -81,6 +83,7 @@ jobs:
             }]
           }
           EOF
+
       - name: Wait for Approval
         id: wait_for_approval
         timeout-minutes: 15
@@ -135,6 +138,7 @@ jobs:
             fi
             sleep 15
           done
+
       - name: Timestamp Approval/Denial
         run: echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
@@ -158,6 +162,7 @@ jobs:
             }]
           }
           EOF
+
       - name: Notify Denial
         if: steps.wait_for_approval.outputs.approval_status == 'deny'
         run: |
@@ -178,6 +183,7 @@ jobs:
             }]
           }
           EOF
+
       - name: Notify Timeout
         if: steps.wait_for_approval.outputs.approval_status == 'pending'
         run: |
@@ -194,7 +200,7 @@ jobs:
             "from": {"email":"$EMAIL_FROM"},
             "content": [{
               "type": "text/html",
-              "value": "Approval Timeout for PR <a href='$PR_URL'>#${PR_NUMBER}</a><br>Merged by: <strong>$PR_MERGED_BY</strong>"
+              "value": "Timeout reached for approval of PR <a href='$PR_URL'>#${PR_NUMBER}</a>.<br>Issue: <a href='$ISSUE_URL'>#$ISSUE_NUMBER</a>"
             }]
           }
           EOF
