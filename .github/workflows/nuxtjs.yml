@@ -1,4 +1,4 @@
-name: Auto-pull on Production Server, on PR merge for release-prod
+  name: Auto-pull on Production Server, on PR merge for release-prod
 
 # This workflow is triggered when a pull request is closed and merged into the release-prod branch.
 # It sends an email notification, creates an issue for approval, and waits for the approval before deploying.
@@ -69,10 +69,9 @@ jobs:
       - name: Create Approval Issue
         id: create_issue
         run: |
-
           ISSUE_BODY="Please approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><br><br><ul><li>Type <strong>approved</strong> for approving the request</li><li>Type <strong>deny</strong> for denying the request</li></ul><br><span>Note: Add the comment and click on Close with Comment button</span>"
           response=$(curl -s -X POST \
-            -H "Authorization: token ${{ env.TOKEN }}" \
+            -H "Authorization: token ${{ env.TOKEN_GITHUB }}" \
             -d "{\"title\":\"Deployment Approval for PR ${{ env.PR_NUMBER }}\", \"body\":\"$ISSUE_BODY\"}" \
             "https://api.github.com/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/issues")
 
