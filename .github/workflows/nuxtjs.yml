@@ -424,26 +424,26 @@ jobs:
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Authorization: Bearer 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" \
               --header "Content-Type: application/json" \
               --data '{
-                "personalizations":  [
+                "personalizations": [
                   {
                     "to": [
                       {
-                        "email":"${{ env.email_to }}"
+                        "email": "sheraj.ahamad@houzeo.com"
                       }
                     ],
-                    "subject": "${{ env.email_subject }}"
+                    "subject": "Nuxt Production Deployment FAILED | PR #31"
                   }
                 ],
                 "from": {
-                  "email":"${{ env.email_from }}"
+                  "email": "devops@houzeo.com"
                 },
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>deployment has <span style='color:red;'>FAILED</span></strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>Please visit Actions tab to view the Workflow"
+                    "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href=\"https://github.com/sheraj2939/Nuxt_GitHubeAction/pull/31\">#31</a><br>PR merged by: <strong>sheraj2939</strong><br>Timestamp: <strong>2025-04-23 16:09:51</strong><br>Please visit Actions tab to view the Workflow"
                   }
                 ]
               }'
