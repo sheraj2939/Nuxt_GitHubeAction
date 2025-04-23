@@ -431,14 +431,14 @@ jobs:
                   {
                     "to": [
                       {
-                        "email": "sheraj.ahamad@houzeo.com"
+                        "email": "${{ env.email_to }}"
                       }
                     ],
-                    "subject": "Nuxt Production Deployment FAILED | PR #31"
+                    "subject": "${{ env.email_subject }}"
                   }
                 ],
                 "from": {
-                  "email": "devops@houzeo.com"
+                  "email": "${{ env.email_from }}"
                 },
                 "content": [
                   {
