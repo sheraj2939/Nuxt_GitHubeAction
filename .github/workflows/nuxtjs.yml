@@ -424,7 +424,7 @@ jobs:
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: ${{ env.email_sendgrid_key }}" \
+              --header "Authorization: Bearer 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" \
               --header "Content-Type: application/json" \
               --data '{
                 "personalizations": [
@@ -443,7 +443,7 @@ jobs:
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href=\"https://github.com/sheraj2939/Nuxt_GitHubeAction/pull/31\">#31</a><br>PR merged by: <strong>sheraj2939</strong><br>Timestamp: <strong>2025-04-23 16:09:51</strong><br>Please visit Actions tab to view the Workflow"
+                    "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href=\"https://github.com/sheraj2939/Nuxt_GitHubeAction/pull/31\">#31</a><br>PR merged by: <strong>sheraj2939</strong><br>Timestamp: <strong>2025-04-23 15:56:45</strong><br>Please visit Actions tab to view the Workflow logs."
                   }
                 ]
               }'
