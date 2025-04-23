@@ -1,5 +1,4 @@
 #pm2 configurations
-
 module.exports = {
   apps: [
     {
