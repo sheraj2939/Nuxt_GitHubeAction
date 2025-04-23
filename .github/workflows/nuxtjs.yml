@@ -367,7 +367,9 @@ jobs:
     if: needs.manual_approval.outputs.approval_status == 'approved'
     steps:
       - name: Run deployment script on self-hosted runner
-        run: sudo bash /home/Houzeo/nuxt-deploy.sh
+        run: |
+          sudo cd /home/Houzeo/
+          sudo bash nuxt-deploy.sh
 
       - name: Get current timestamp
         id: timestamp
