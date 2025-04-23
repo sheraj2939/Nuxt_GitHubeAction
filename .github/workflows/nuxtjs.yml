@@ -386,6 +386,7 @@ jobs:
           run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
   
         - name: Send Deployment Completed Email via SendGrid
+          if: success()
           run: |
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
