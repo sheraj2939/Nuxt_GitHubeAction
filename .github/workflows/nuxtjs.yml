@@ -368,12 +368,8 @@ jobs:
     steps:
       - name: Run deployment script on self-hosted runner
         run: |
-          echo "➡️ [ACTION] Running deployment script..."
-          ls -l /home/Houzeo/nuxt-deploy.sh
-          cat /home/Houzeo/nuxt-deploy.sh
-          sudo bash -x /home/Houzeo/nuxt-deploy.sh
-          sudo cd /home/Houzeo/
-          pwd
+          cd /home/Houzeo
+          sudo bash nuxt-deploy.sh
 
       - name: Get current timestamp
         id: timestamp
