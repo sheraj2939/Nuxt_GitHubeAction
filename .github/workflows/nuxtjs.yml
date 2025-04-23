@@ -22,7 +22,7 @@ env:
   APPROVED: false
 
 jobs:
-  manual_approval:
+  Manual_Approval:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
     runs-on: ubuntu-latest
     outputs:
@@ -361,10 +361,10 @@ jobs:
               ]
             }'
   deploy:
-      name: Deploy Nuxt App
+      name: Deploy_Nuxt_App
       runs-on: self-hosted
-      needs: manual_approval
-      if: needs.manual_approval.outputs.approval_status == 'approved'
+      needs: Manual_Approval
+      if: needs.Manual_Approval.outputs.approval_status == 'approved'
       steps:
         - name: Check if deployment script exists
           id: check_script
