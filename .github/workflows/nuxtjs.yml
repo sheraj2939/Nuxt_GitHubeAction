@@ -69,12 +69,12 @@ jobs:
         id: create_issue
         run: |
           ISSUE_BODY="Please approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><br><br><ul><li>Type <strong>approved</strong> for approving the request</li><li>Type <strong>deny</strong> for denying the request</li></ul><br><span>Note: Add the comment and click on Close with Comment button</span>"
-
+      
           response=$(curl -s -X POST \
-            -H "Authorization: token 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" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d "{\"title\":\"Deployment Approval for PR ${{ env.PR_NUMBER }}\", \"body\":\"$ISSUE_BODY\"}" \
             "https://api.github.com/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/issues")
-
+      
           ISSUE_NUMBER=$(echo "$response" | jq -r '.number')
           ISSUE_URL=$(echo "$response" | jq -r '.html_url')
           
@@ -82,10 +82,11 @@ jobs:
           echo "issue number: $ISSUE_NUMBER"
           echo "$response" | jq .
           echo "$response" | jq '.data'
-
+      
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
           echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
           echo "Approval issue created: $ISSUE_URL"
+
           
       - name: Send Create Approval Mail
         id: send_create_approval_mail
