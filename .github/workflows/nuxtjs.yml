@@ -1,4 +1,4 @@
-  name: Auto-pull on Production Server, on PR merge for release-prod
+name: Auto-pull on Production Server, on PR merge for release-prod
 
 # This workflow is triggered when a pull request is closed and merged into the release-prod branch.
 # It sends an email notification, creates an issue for approval, and waits for the approval before deploying.
