@@ -424,7 +424,7 @@ jobs:
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: Bearer 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" \
+              --header "Authorization: ${{ env.email_sendgrid_key }}" \
               --header "Content-Type: application/json" \
               --data '{
                 "personalizations": [
