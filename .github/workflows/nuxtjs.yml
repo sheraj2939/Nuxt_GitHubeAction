@@ -368,6 +368,9 @@ jobs:
     steps:
       - name: Run deployment script on self-hosted runner
         run: |
+          pwd
+          ls -l /home/Houzeo/
+          ls -l /home/Houzeo/nuxt-deploy.sh
           cd /home/Houzeo
           sudo bash nuxt-deploy.sh
 
