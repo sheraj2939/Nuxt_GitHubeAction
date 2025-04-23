@@ -431,19 +431,19 @@ jobs:
                   {
                     "to": [
                       {
-                        "email":"${{ env.email_to }}"
+                        "email": "${{ env.email_to }}"
                       }
                     ],
                     "subject": "Nuxt Production Deployment FAILED | PR #${{ env.PR_NUMBER }}"
                   }
                 ],
                 "from": {
-                  "email":"${{ env.email_from }}"
+                  "email": "${{ env.email_from }}"
                 },
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>deployment has <span style='color:red;'>FAILED</span></strong> for PR<a href='${{ env.PR_URL }}'> #${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
+                    "value": "The <strong>deployment has <span style='color:red;'>FAILED</span></strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
                   }
                 ]
               }'
