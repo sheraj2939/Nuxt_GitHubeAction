@@ -370,7 +370,6 @@ jobs:
         run: |
           pwd
           ls -l /home/Houzeo/
-          ls -l /home/Houzeo/nuxt-deploy.sh
           cd /home/Houzeo
           sudo bash nuxt-deploy.sh
 
