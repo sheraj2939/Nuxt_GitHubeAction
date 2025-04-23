@@ -359,6 +359,7 @@ jobs:
                 }
               ]
             }'
+            
   deploy:
     name: Deploy Nuxt App
     runs-on: self-hosted
