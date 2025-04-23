@@ -1,4 +1,4 @@
-#update modulex
+#pm2 configuration
 module.exports = {
   apps: [
     {
