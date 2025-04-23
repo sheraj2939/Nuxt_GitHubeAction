@@ -359,3 +359,78 @@ jobs:
                 }
               ]
             }'
+  deploy:
+    name: Deploy Nuxt App
+    runs-on: self-hosted
+    needs: manual_approval
+    if: needs.manual_approval.outputs.approval_status == 'approved'
+    steps:
+      - name: Run deployment script on self-hosted runner
+        run: sudo bash /root/Houzeo/nuxt-deploy.sh
+
+      - name: Get current timestamp
+        id: timestamp
+        run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
+      - name: Send Deployment Completed Email via SendGrid
+        run: |
+          curl --request POST \
+            --url https://api.sendgrid.com/v3/mail/send \
+            --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "personalizations":  [
+                {
+                  "to": [
+                    {
+                      "email":"${{ env.email_to }}"
+                    }
+                  ],
+                  "subject": "${{ env.email_subject }}"
+                }
+              ],
+              "from": {
+                "email":"${{ env.email_from }}"
+              },
+              "content": [
+                {
+                  "type": "text/html",
+                 
+                  "value": "The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+                }
+              ]
+            }'
+      - name: Get current timestamp
+        if: always()
+        id: timestamp_failed
+        run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+      
+      - name: Send Failure Notification 2
+        if: failure()  # This ensures this step runs only if there's a failure in the previous steps
+        run: |
+          echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          curl --request POST \
+            --url https://api.sendgrid.com/v3/mail/send \
+            --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "personalizations":  [
+                {
+                  "to": [
+                    {
+                      "email":"${{ env.email_to }}"
+                    }
+                  ],
+                  "subject": "${{ env.email_subject }}"
+                }
+              ],
+              "from": {
+                "email":"${{ env.email_from }}"
+              },
+              "content": [
+                {
+                  "type": "text/html",
+                  "value": "The <strong>deployment has <span style='color:red;'>FAILED</span></strong> for PR<a href='${{ env.PR_URL }}'> #${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow"
+                }
+              ]
+            }'
