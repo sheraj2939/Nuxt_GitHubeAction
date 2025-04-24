@@ -499,7 +499,7 @@ jobs:
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>CloudFront Cache Invalidation has Completed</strong>"
+                    "value": "The <strong>CloudFront Cache Invalidation has Completed</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>"
                   }
                 ]
               }'
@@ -534,7 +534,7 @@ jobs:
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>CloudFront Cache Invalidation has <span style=\"color:red;\">FAILED</span></strong>"
+                    "value": "The <strong>CloudFront Cache Invalidation has <span style=\"color:red;\">FAILED</span></strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
                   }
                 ]
               }'
