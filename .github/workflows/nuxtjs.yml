@@ -236,7 +236,7 @@ jobs:
         id: timestamp_approved_denied
         run: echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
                            
-      - name: Send Approval Approved By Mail
+      - name: Send Approval Approved Notification By Mail
         id: send_approved_by_mail
         if: env.APPROVAL_STATUS == 'approved'
         run: |
@@ -267,7 +267,7 @@ jobs:
               ]
             }'
 
-      - name: Send Approval Deny By Mail
+      - name: Send Approval Deny Notification By Mail
         id: send_deny_by_mail
         if: env.APPROVAL_STATUS == 'deny'
         run: |
@@ -298,7 +298,7 @@ jobs:
               ]
             }'
 
-      - name: Send Approval Timeout Notification
+      - name: Send Approval Timeout Notification By Mail
         if:  failure() && steps.wait_for_approval.outcome == 'failure'
         run: |
          
@@ -332,7 +332,7 @@ jobs:
         id: timestamp_failed
         run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV  
 
-      - name: Send Approval Failure Notification  
+      - name: Send Approval Failure Notification By Mail 
         # This ensures this step runs only if there's a failure in the previous steps
         if: failure() && steps.wait_for_approval.outcome != 'failure'
         run: |
@@ -379,7 +379,6 @@ jobs:
   
         - name: Run deployment script on self-hosted runner
           run: |
-            pwd
             sudo bash ${{ env.Script_Path }}
   
         - name: Get current timestamp
@@ -420,7 +419,7 @@ jobs:
           id: timestamp_failed
           run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
           
-        - name: Send Deployment Failure Notification
+        - name: Send Deployment Failure Notification By Mail
           if: failure()
           run: |
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
@@ -509,7 +508,7 @@ jobs:
           id: timestamp_failed
           run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
           
-        - name: Send CloudFront Cache Invalidation Failure Notification
+        - name: Send CloudFront Cache Invalidation Failure Notification By Mail
           if: failure()
           run: |
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
