@@ -20,7 +20,8 @@ env:
   TOKEN: ${{ secrets.TOKEN_GITHUB }}
   AWS_REGION: us-east-1
   CLOUDFRONT_DISTRIBUTION_ID: E1EIX7TDI2X6Z5
-  PROJECT_PATH: "/home/Houzeo"
+  PROJECT_PATH: "/data/houzeo-frontend"
+  Script_Path: "/home/Houzeo/nuxt-deploy.sh"
   APPROVED: false
 
 jobs:
@@ -371,7 +372,7 @@ jobs:
         - name: Check if deployment script exists
           id: check_script
           run: |
-            if [ ! -f /home/Houzeo/nuxt-deploy.sh ]; then
+            if [ ! -f ${{ env.Script_Path }} ]; then
               echo "Deployment script not found"
               exit 1
             fi
@@ -379,9 +380,7 @@ jobs:
         - name: Run deployment script on self-hosted runner
           run: |
             pwd
-            ls -l /home/Houzeo/
-            cd /home/Houzeo
-            sudo bash nuxt-deploy.sh
+            sudo bash ${{ env.Script_Path }}
   
         - name: Get current timestamp
           id: timestamp
