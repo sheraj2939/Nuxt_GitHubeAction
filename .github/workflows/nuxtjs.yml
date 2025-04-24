@@ -47,7 +47,7 @@ jobs:
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Deployment started for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
+                "value": "The <strong>deployment has started</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
               }]
             }'
 
@@ -76,7 +76,7 @@ jobs:
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approval link: <a href='${{ env.ISSUE_URL }}'>Issue</a>"
+                "value": "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approval link: <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
               }]
             }'
 
@@ -158,12 +158,12 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "✅ Approval Result | ${{ env.email_subject }}"
+                "subject": "${{ env.email_subject }}"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Deployment Decision: <strong>'$decision'</strong><br>PR: <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>By: <strong>${{ env.APPROVER || 'N/A' }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FINAL }}</strong>"
+                "value": "Deployment Decision: <strong>'$decision'</strong><br>PR: <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approved By: <strong>${{ env.APPROVER || 'N/A' }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FINAL }}</strong>"
               }]
             }'
 
