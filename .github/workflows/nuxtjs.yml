@@ -25,7 +25,7 @@ env:
 
 jobs:
   Manual_Approval:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
     runs-on: ubuntu-latest
     outputs:
       approval_status: ${{ steps.set_approval.outputs.approval_status }}
@@ -42,7 +42,7 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "${{ env.email_subject }}"
+                "subject": "'"${{ env.email_subject }}"'"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
@@ -71,7 +71,7 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "${{ env.email_subject }}"
+                "subject": "'"${{ env.email_subject }}"'"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
@@ -89,15 +89,14 @@ jobs:
           echo "Waiting for approval..."
           SECONDS=0
           REMINDER_SENT=false
-          APPROVAL_STATUS=""
-          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 900 ]; do
+          while [ $SECONDS -lt 900 ]; do
             comments=$(curl -s -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
             comment_texts=$(echo "$comments" | jq -r '.[].body')
             authors=$(echo "$comments" | jq -r '.[].user.login')
           
-            index_approved=$(echo "$comment_texts" | grep -n 'approved' | tail -n1 | cut -d: -f1)
-            index_deny=$(echo "$comment_texts" | grep -n 'deny' | tail -n1 | cut -d: -f1)
+            index_approved=$(echo "$comment_texts" | grep -ni 'approved' | cut -d: -f1 | tail -n1)
+            index_deny=$(echo "$comment_texts" | grep -ni 'deny' | cut -d: -f1 | tail -n1)
           
             if [ -n "$index_approved" ]; then
               author=$(echo "$authors" | sed -n "${index_approved}p")
@@ -116,12 +115,12 @@ jobs:
                 exit 0
               fi
             fi
-          
+
             if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" == "false" ]; then
-              # Send reminder email...
+              echo "Reminder not implemented yet."
               REMINDER_SENT=true
             fi
-          
+
             sleep 15
           done
 
@@ -147,12 +146,12 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "${{ env.email_subject }}"
+                "subject": "'"${{ env.email_subject }}"'"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Approval Received for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approved by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>"
+                "value": "Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a>: <strong>'"$decision"'</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Decision by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
               }]
             }'
 
