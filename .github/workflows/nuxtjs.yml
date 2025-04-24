@@ -1,4 +1,4 @@
-name: Auto-pull on Production Server, on PR merge for release-prod
+name: 🚀 Nuxt App CI/CD Deployment
 
 on:
   pull_request:
@@ -11,13 +11,15 @@ env:
   email_from: devops@houzeo.com
   email_to: sheraj.ahamad@houzeo.com
   email_sendgrid_key: ${{ secrets.SENDGRID_API_KEY }}
-  email_subject: "Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
+  email_subject: "🚀 Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
   PR_NUMBER: ${{ github.event.pull_request.number }}
   PR_URL: ${{ github.event.pull_request.html_url }}
   PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
   REPO_OWNER: ${{ github.event.repository.owner.login }}
   REPO_NAME: ${{ github.event.repository.name }}
   TOKEN: ${{ secrets.TOKEN_GITHUB }}
+  AWS_REGION: us-east-1
+  CLOUDFRONT_DISTRIBUTION_ID: E1EIX7TDI2X6Z5
   PROJECT_PATH: "/home/Houzeo"
   APPROVED: false
 
@@ -234,7 +236,7 @@ jobs:
         id: timestamp_approved_denied
         run: echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
                            
-      - name: Send Approved By Mail
+      - name: Send Approval Approved By Mail
         id: send_approved_by_mail
         if: env.APPROVAL_STATUS == 'approved'
         run: |
@@ -265,7 +267,7 @@ jobs:
               ]
             }'
 
-      - name: Send Deny By Mail
+      - name: Send Approval Deny By Mail
         id: send_deny_by_mail
         if: env.APPROVAL_STATUS == 'deny'
         run: |
@@ -296,7 +298,7 @@ jobs:
               ]
             }'
 
-      - name: Send Timeout Notification
+      - name: Send Approval Timeout Notification
         if:  failure() && steps.wait_for_approval.outcome == 'failure'
         run: |
          
@@ -330,7 +332,7 @@ jobs:
         id: timestamp_failed
         run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV  
 
-      - name: Send Failure Notification 1
+      - name: Send Approval Failure Notification  
         # This ensures this step runs only if there's a failure in the previous steps
         if: failure() && steps.wait_for_approval.outcome != 'failure'
         run: |
@@ -360,7 +362,7 @@ jobs:
                 }
               ]
             }'
-  deploy:
+  Deploy:
       name: Deploy_Nuxt_App
       runs-on: self-hosted
       needs: Manual_Approval
@@ -419,7 +421,7 @@ jobs:
           id: timestamp_failed
           run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
           
-        - name: Send Failure Notification 2
+        - name: Send Deployment Failure Notification
           if: failure()
           run: |
             echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
@@ -445,6 +447,94 @@ jobs:
                   {
                     "type": "text/html",
                     "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
+                  }
+                ]
+              }'
+  Cloudfront:
+      name: Invalidate_CloudFront_Cache
+      runs-on: self-hosted
+      needs: Deploy
+      if: success()
+      steps:
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+
+        - name: Invalidate CloudFront Cache
+          run: |
+            echo "Invalidating CloudFront cache..."
+            aws cloudfront create-invalidation \
+              --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+              --paths "/*"
+                - name: Get current timestamp
+                
+        - name: Get current timestamp
+          id: timestamp
+          run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+        - name: Send CloudFront Cache Invalidation Completed Email via SendGrid
+          if: success()
+          run: |
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations":  [
+                  {
+                    "to": [
+                      {
+                        "email":"${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email":"${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>CloudFront Cache Invalidation has Completed</strong>"
+                  }
+                ]
+              }'
+  
+        - name: Get current timestamp (Failure timestamp)
+          if: always()
+          id: timestamp_failed
+          run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          
+        - name: Send CloudFront Cache Invalidation Failure Notification
+          if: failure()
+          run: |
+            echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations": [
+                  {
+                    "to": [
+                      {
+                        "email": "${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email": "${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>CloudFront Cache Invalidation has <span style=\"color:red;\">FAILED</span></strong>"
                   }
                 ]
               }'
