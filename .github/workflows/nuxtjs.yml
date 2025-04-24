@@ -163,7 +163,7 @@ jobs:
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Deployment Decision: <strong>'$decision'</strong><br>PR: <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approved By: <strong>${{ env.APPROVER || 'N/A' }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FINAL }}</strong>"
+                "value": "Approval Received for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Approved by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>"
               }]
             }'
 
