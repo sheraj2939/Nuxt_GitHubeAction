@@ -173,4 +173,4 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Run Nuxt Deploy Script
-        run: bash ${{ env.Script_Path }}
+        run: sudo bash ${{ env.Script_Path }}
