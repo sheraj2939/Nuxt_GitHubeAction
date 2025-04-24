@@ -90,49 +90,38 @@ jobs:
           SECONDS=0
           REMINDER_SENT=false
           APPROVAL_STATUS=""
-          while [ -z "$APPROVAL_STATUS" ]; do
+          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 900 ]; do
             comments=$(curl -s -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
             comment_texts=$(echo "$comments" | jq -r '.[].body')
             authors=$(echo "$comments" | jq -r '.[].user.login')
-
+          
             index_approved=$(echo "$comment_texts" | grep -n 'approved' | tail -n1 | cut -d: -f1)
             index_deny=$(echo "$comment_texts" | grep -n 'deny' | tail -n1 | cut -d: -f1)
-
+          
             if [ -n "$index_approved" ]; then
               author=$(echo "$authors" | sed -n "${index_approved}p")
               if [[ ",${AUTHORIZED_APPROVERS}," == *",$author,"* ]]; then
                 echo "approval_status=approved" >> $GITHUB_OUTPUT
-                echo "APPROVER=$author" >> $GITHUB_ENV
-                break
+                echo "AUTHOR=$author" >> $GITHUB_ENV
+                echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+                exit 0
               fi
             elif [ -n "$index_deny" ]; then
               author=$(echo "$authors" | sed -n "${index_deny}p")
               if [[ ",${AUTHORIZED_APPROVERS}," == *",$author,"* ]]; then
                 echo "approval_status=deny" >> $GITHUB_OUTPUT
-                echo "APPROVER=$author" >> $GITHUB_ENV
-                break
+                echo "AUTHOR=$author" >> $GITHUB_ENV
+                echo "TIMESTAMP_APPROVED_DENIED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+                exit 0
               fi
             fi
-
+          
             if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" == "false" ]; then
-              curl --request POST \
-                --url https://api.sendgrid.com/v3/mail/send \
-                --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
-                --header "Content-Type: application/json" \
-                --data '{
-                  "personalizations": [{
-                    "to": [{"email":"${{ env.email_to }}"}],
-                    "subject": "⏰ Reminder: Approval Pending | ${{ env.email_subject }}"
-                  }],
-                  "from": { "email":"${{ env.email_from }}" },
-                  "content": [{
-                    "type": "text/html",
-                    "value": "Reminder: Approval still pending for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please check <a href='${{ env.ISSUE_URL }}'>approval issue</a>."
-                  }]
-                }'
+              # Send reminder email...
               REMINDER_SENT=true
             fi
+          
             sleep 15
           done
 
