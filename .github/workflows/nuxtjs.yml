@@ -200,17 +200,10 @@ jobs:
               }"
           }
       
-          if [[ "${{ github.event.workflow_run.conclusion }}" == "cancelled" ]]; then
-            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>manual cancellation</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong><br>Please visit Actions tab to view the Workflow"
-            send_email "$msg"
-          elif [[ "${{ steps.set_approval.outputs.approval_status }}" == "timeout" ]]; then
-            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>timeout</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong><br>Please visit Actions tab to view the Workflow"
-            send_email "$msg"
-          elif [[ "${{ steps.set_approval.outputs.approval_status }}" == "deny" ]]; then
-            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>denial</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>Please visit Actions tab to view the Workflow"
-            send_email "$msg"
-          fi
-
+          msg="The deployment <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
+      
+          # Send the email for approval failure, timeout, or denial
+          send_email "$msg"
 
   Deploy_If_Approved:
     needs: Manual_Approval
