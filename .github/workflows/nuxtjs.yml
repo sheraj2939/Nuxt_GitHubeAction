@@ -130,7 +130,7 @@ jobs:
                   "from": { "email":"${{ env.email_from }}" },
                   "content": [{
                     "type": "text/html",
-                    "value": "Reminder: Approval still pending for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }}</a>"
+                    "value": "Reminder: Approval still pending for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Check Issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }} and approve or deny</a>"
                   }]
                 }'
               REMINDER_SENT=true
