@@ -117,7 +117,7 @@ jobs:
               fi
             fi
 
-            if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" = false ]; then
+            if [ $SECONDS -ge 120 ] && [ "$REMINDER_SENT" = false ]; then
               echo "Sending reminder email..."
               curl --request POST \
                 --url https://api.sendgrid.com/v3/mail/send \
@@ -137,7 +137,7 @@ jobs:
               REMINDER_SENT=true
             fi
 
-            sleep 15
+            sleep 3
           done
 
           # Set IST timestamp for timeout too
@@ -178,7 +178,7 @@ jobs:
       - name: Send Failure Notification Email if Approval Fails
         if: always() && steps.set_approval.outcome != 'success'
         run: |
-          echo "Approval outcome: ${{ steps.set_approval.outcome }}"
+          echo "Approval outcome: failure"
 
           send_email() {
             local message=$1
@@ -200,11 +200,11 @@ jobs:
               }"
           }
 
-          if [[ "${{ steps.set_approval.outcome }}" == "timeout" ]]; then
-            msg=\"The deployment <strong style='color:red;'>FAILED</strong> due to <strong>timeout</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>Please visit Actions tab to view the Workflow\"
+          if [[ "failure" == "timeout" ]]; then
+            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>timeout</strong> for PR <a href='https://github.com/***/Nuxt_GitHubeAction/pull/98'>#98</a><br>PR merged by: <strong>***</strong><br>Timestamp: <strong></strong><br>Please visit Actions tab to view the Workflow"
             send_email "$msg"
-          elif [[ "${{ steps.set_approval.outcome }}" == "failure" ]]; then
-            msg=\"The deployment <strong style='color:red;'>FAILED</strong> due to <strong>denial</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>Please visit Actions tab to view the Workflow\"
+          elif [[ "failure" == "failure" ]]; then
+            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>denial</strong> for PR <a href='https://github.com/***/Nuxt_GitHubeAction/pull/98'>#98</a><br>Denied by: <strong></strong><br>Timestamp: <strong></strong><br>Please visit Actions tab to view the Workflow"
             send_email "$msg"
           fi
 
