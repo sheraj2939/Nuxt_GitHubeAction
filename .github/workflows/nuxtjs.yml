@@ -54,7 +54,7 @@ jobs:
       - name: Create Approval Issue
         id: create_issue
         run: |
-          body="Please approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><br><br><ul><li>Type: <strong>approved</strong> for approving the request</li><li>Type: <strong>deny</strong> for denying the request</li></ul><br><span><strong>Note:</strong> Add the comment and click on 'Close with Comment' button</span>"
+          body="Please approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><br><br><ul><li>Type: <strong>Approved</strong> for approving the request</li><li>Type: <strong>Deny</strong> for denying the request</li></ul><br><span><strong>Note:</strong> Add the comment and click on 'Close with Comment' button</span>"
           response=$(curl -s -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d "{\"title\":\"Deployment Approval for PR ${{ env.PR_NUMBER }}\", \"body\":\"$body\"}" \
