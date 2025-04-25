@@ -25,7 +25,7 @@ env:
 
 jobs:
   Manual_Approval:
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       approval_status: ${{ steps.set_approval.outputs.approval_status }}
@@ -42,19 +42,19 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "'"${{ env.email_subject }}"'"
+                "subject": "${{ env.email_subject }}"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "The <strong>deployment has started</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
+                "value": "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
               }]
             }'
 
       - name: Create Approval Issue
         id: create_issue
         run: |
-          body="Approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><ul><li>Type: <strong>Approved</strong> for approving the request</li><li>Type: <strong>Deny</strong> for denying the request</li></ul><span>Note: Add the comment and click on 'Close with comment' button</span>"
+          body="Approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><ul><li>Type: <strong>Approved</strong> to approve</li><li>Type: <strong>Deny</strong> to reject</li></ul><br>Note: Use 'Close with comment'."
           response=$(curl -s -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d "{\"title\":\"Deployment Approval for PR ${{ env.PR_NUMBER }}\", \"body\":\"$body\"}" \
@@ -71,12 +71,12 @@ jobs:
             --data '{
               "personalizations": [{
                 "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "'"${{ env.email_subject }}"'"
+                "subject": "${{ env.email_subject }}"
               }],
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
+                "value": "Please approve or reject the deployment for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Check issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }}</a>."
               }]
             }'
 
@@ -89,15 +89,16 @@ jobs:
           echo "Waiting for approval..."
           SECONDS=0
           REMINDER_SENT=false
-          while [ $SECONDS -lt 900 ]; do
+          APPROVAL_STATUS=""
+          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 900 ]; do
             comments=$(curl -s -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
             comment_texts=$(echo "$comments" | jq -r '.[].body')
             authors=$(echo "$comments" | jq -r '.[].user.login')
-          
-            index_approved=$(echo "$comment_texts" | grep -ni 'approved' | cut -d: -f1 | tail -n1)
-            index_deny=$(echo "$comment_texts" | grep -ni 'deny' | cut -d: -f1 | tail -n1)
-          
+
+            index_approved=$(echo "$comment_texts" | grep -in 'approved' | cut -d: -f1 | tail -n1)
+            index_deny=$(echo "$comment_texts" | grep -in 'deny' | cut -d: -f1 | tail -n1)
+
             if [ -n "$index_approved" ]; then
               author=$(echo "$authors" | sed -n "${index_approved}p")
               if [[ ",${AUTHORIZED_APPROVERS}," == *",$author,"* ]]; then
@@ -116,15 +117,31 @@ jobs:
               fi
             fi
 
-            if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" == "false" ]; then
-              echo "Reminder not implemented yet."
+            if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" = false ]; then
+              echo "Sending reminder email..."
+              curl --request POST \
+                --url https://api.sendgrid.com/v3/mail/send \
+                --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+                --header "Content-Type: application/json" \
+                --data '{
+                  "personalizations": [{
+                    "to": [{"email":"${{ env.email_to }}"}],
+                    "subject": "[Reminder] ${{ env.email_subject }}"
+                  }],
+                  "from": { "email":"${{ env.email_from }}" },
+                  "content": [{
+                    "type": "text/html",
+                    "value": "Reminder: Approval still pending for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }}</a>"
+                  }]
+                }'
               REMINDER_SENT=true
             fi
 
             sleep 15
           done
+          echo "approval_status=timeout" >> $GITHUB_OUTPUT
 
-      - name: Get final timestamp
+      - name: Final Timestamp
         run: echo "TIMESTAMP_FINAL=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
       - name: Send Approval Result Email
@@ -132,28 +149,28 @@ jobs:
         run: |
           status="${{ steps.set_approval.outputs.approval_status }}"
           if [ "$status" == "approved" ]; then
-            decision="Approved"
+            message="Approval status for PR #${{ env.PR_NUMBER }}: Approved<br>Approved by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           elif [ "$status" == "deny" ]; then
-            decision="Denied"
+            message="Approval status for PR #${{ env.PR_NUMBER }}: Denied<br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           else
-            decision="Timed Out"
+            message="Approval status for PR #${{ env.PR_NUMBER }}: Timed Out"
           fi
 
           curl --request POST \
             --url https://api.sendgrid.com/v3/mail/send \
             --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
             --header "Content-Type: application/json" \
-            --data '{
-              "personalizations": [{
-                "to": [{"email":"${{ env.email_to }}"}],
-                "subject": "'"${{ env.email_subject }}"'"
+            --data "{
+              \"personalizations\": [{
+                \"to\": [{\"email\":\"${{ env.email_to }}\"}],
+                \"subject\": \"${{ env.email_subject }}\"
               }],
-              "from": { "email":"${{ env.email_from }}" },
-              "content": [{
-                "type": "text/html",
-                "value": "Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a>: <strong>'"$decision"'</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Decision by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
+              \"from\": { \"email\": \"${{ env.email_from }}\" },
+              \"content\": [{
+                \"type\": \"text/html\",
+                \"value\": \"$message\"
               }]
-            }'
+            }"
 
   Deploy_If_Approved:
     needs: Manual_Approval
