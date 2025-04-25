@@ -90,7 +90,7 @@ jobs:
           SECONDS=0
           REMINDER_SENT=false
           APPROVAL_STATUS=""
-          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 900 ]; do
+          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 180 ]; do
             comments=$(curl -s -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
             comment_texts=$(echo "$comments" | jq -r '.[].body')
