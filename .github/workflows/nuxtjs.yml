@@ -76,7 +76,7 @@ jobs:
               "from": { "email":"${{ env.email_from }}" },
               "content": [{
                 "type": "text/html",
-                "value": "Please approve or reject the deployment for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Check issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }}</a>."
+                "value": "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
               }]
             }'
 
