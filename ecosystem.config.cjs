@@ -1,4 +1,4 @@
-#pm2
+#pmo2
 module.exports = {
   apps: [
     {
