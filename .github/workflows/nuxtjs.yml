@@ -202,7 +202,7 @@ jobs:
       
           msg="The deployment <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
       
-          # Send the email for approval failure, timeout, or denial
+          # Send the email for approval failure, timeout, or cancel
           send_email "$msg"
 
   Deploy_If_Approved:
