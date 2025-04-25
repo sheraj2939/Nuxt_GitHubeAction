@@ -156,7 +156,7 @@ jobs:
           elif [ "$status" == "deny" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: Denied<br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           else
-            message="Approval status for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a>: <strong>Timed Out</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
+            message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>Timed Out</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           fi
 
           curl --request POST \
