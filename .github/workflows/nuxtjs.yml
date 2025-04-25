@@ -62,7 +62,6 @@ jobs:
           echo "ISSUE_NUMBER=$(echo "$response" | jq -r '.number')" >> $GITHUB_ENV
           echo "ISSUE_URL=$(echo "$response" | jq -r '.html_url')" >> $GITHUB_ENV
 
-
       - name: Send Approval Request Email
         run: |
           curl --request POST \
@@ -140,6 +139,9 @@ jobs:
 
             sleep 15
           done
+
+          # Set IST timestamp for timeout too
+          echo "TIMESTAMP_APPROVED_DENIED=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
           echo "approval_status=timeout" >> $GITHUB_OUTPUT
 
       - name: Final Timestamp
@@ -154,7 +156,7 @@ jobs:
           elif [ "$status" == "deny" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: Denied<br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           else
-            message="Approval status for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a>: <strong>Timed Out</strong>"
+            message="Approval status for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a>: <strong>Timed Out</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           fi
 
           curl --request POST \
