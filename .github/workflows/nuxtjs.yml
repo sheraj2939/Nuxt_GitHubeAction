@@ -174,15 +174,14 @@ jobs:
                 \"value\": \"$message\"
               }]
             }"
-            
       - name: Send Failure Notification Email if Approval Fails
-        if: always() && steps.set_approval.outcome != 'success'
+        if: always() && (steps.set_approval.outcome != 'success' || cancel)
         run: |
-          echo "Approval outcome: failure"
-
+          echo "Approval outcome: failure or pipeline was canceled"
+      
           send_email() {
             local message=$1
-
+      
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
               --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
@@ -199,14 +198,20 @@ jobs:
                 }]
               }"
           }
-
-          if [[ "failure" == "timeout" ]]; then
-            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>timeout</strong> for PR <a href='https://github.com/***/Nuxt_GitHubeAction/pull/98'>#98</a><br>PR merged by: <strong>***</strong><br>Timestamp: <strong></strong><br>Please visit Actions tab to view the Workflow"
+      
+          # Check if the approval status is "timeout" or "failure"
+          if [[ "${{ steps.set_approval.outputs.approval_status }}" == "timeout" ]]; then
+            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>timeout</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>Please visit Actions tab to view the Workflow"
             send_email "$msg"
-          elif [[ "failure" == "failure" ]]; then
-            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>denial</strong> for PR <a href='https://github.com/***/Nuxt_GitHubeAction/pull/98'>#98</a><br>Denied by: <strong></strong><br>Timestamp: <strong></strong><br>Please visit Actions tab to view the Workflow"
+          elif [[ "${{ steps.set_approval.outputs.approval_status }}" == "deny" ]]; then
+            msg="The deployment <strong style='color:red;'>FAILED</strong> due to <strong>denial</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong><br>Please visit Actions tab to view the Workflow"
+            send_email "$msg"
+          elif [[ "${{ github.event.workflow_run.conclusion }}" == "cancelled" ]]; then
+            msg="The deployment for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> was <strong>canceled</strong>.<br>Timestamp: <strong>${{ env.TIMESTAMP_FINAL }}</strong><br>Please visit Actions tab to view the Workflow."
             send_email "$msg"
           fi
+
+
 
   Deploy_If_Approved:
     needs: Manual_Approval
