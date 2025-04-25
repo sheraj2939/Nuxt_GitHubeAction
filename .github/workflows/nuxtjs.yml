@@ -200,7 +200,7 @@ jobs:
               }"
           }
       
-          msg="The deployment <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
+          msg="The pipeline has <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
       
           # Send the email for approval failure, timeout, or cancel
           send_email "$msg"
@@ -286,7 +286,7 @@ jobs:
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
+                    "value": "The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
                   }
                 ]
               }'
@@ -375,7 +375,7 @@ jobs:
                 "content": [
                   {
                     "type": "text/html",
-                    "value": "The <strong>CloudFront Cache Invalidation has <span style=\"color:red;\">FAILED</span></strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
+                    "value": "The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the cloudfront stage<br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
                   }
                 ]
               }'
