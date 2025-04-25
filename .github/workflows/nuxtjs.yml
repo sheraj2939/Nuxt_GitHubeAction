@@ -205,10 +205,177 @@ jobs:
           # Send the email for approval failure, timeout, or cancel
           send_email "$msg"
 
-  Deploy_If_Approved:
-    needs: Manual_Approval
-    if: needs.Manual_Approval.outputs.approval_status == 'approved'
-    runs-on: self-hosted
-    steps:
-      - name: Run Nuxt Deploy Script
-        run: sudo bash ${{ env.Script_Path }}
+  Deploy:
+      name: Deploy_Nuxt_App
+      runs-on: self-hosted
+      needs: Manual_Approval
+      if: needs.Manual_Approval.outputs.approval_status == 'approved'
+      steps:
+        - name: Check if deployment script exists
+          id: check_script
+          run: |
+            if [ ! -f ${{ env.Script_Path }} ]; then
+              echo "Deployment script not found"
+              exit 1
+            fi
+  
+        - name: Run deployment script on self-hosted runner
+          run: |
+            sudo bash ${{ env.Script_Path }}
+  
+        - name: Get current timestamp
+          id: timestamp
+          run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+        - name: Send Deployment Completed Email via SendGrid
+          if: success()
+          run: |
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations":  [
+                  {
+                    "to": [
+                      {
+                        "email":"${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email":"${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+                  }
+                ]
+              }'
+  
+        - name: Get current timestamp (Failure timestamp)
+          if: always()
+          id: timestamp_failed
+          run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          
+        - name: Send Deployment Failure Notification By Mail
+          if: failure()
+          run: |
+            echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations": [
+                  {
+                    "to": [
+                      {
+                        "email": "${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email": "${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>deployment has <span style=\"color:red;\">FAILED</span></strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
+                  }
+                ]
+              }'
+              
+  Cloudfront:
+      name: Invalidate_CloudFront_Cache
+      runs-on: self-hosted
+      needs: Deploy
+      if: success()
+      steps:
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+
+        - name: Invalidate CloudFront Cache
+          run: |
+            echo "Invalidating CloudFront cache..."
+            aws cloudfront create-invalidation \
+              --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+              --paths "/*"
+                - name: Get current timestamp
+                
+        - name: Get current timestamp
+          id: timestamp
+          run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+        - name: Send CloudFront Cache Invalidation Completed Email via SendGrid
+          if: success()
+          run: |
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations":  [
+                  {
+                    "to": [
+                      {
+                        "email":"${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email":"${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>CloudFront Cache Invalidation has Completed</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>"
+                  }
+                ]
+              }'
+  
+        - name: Get current timestamp (Failure timestamp)
+          if: always()
+          id: timestamp_failed
+          run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          
+        - name: Send CloudFront Cache Invalidation Failure Notification By Mail
+          if: failure()
+          run: |
+            echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data '{
+                "personalizations": [
+                  {
+                    "to": [
+                      {
+                        "email": "${{ env.email_to }}"
+                      }
+                    ],
+                    "subject": "${{ env.email_subject }}"
+                  }
+                ],
+                "from": {
+                  "email": "${{ env.email_from }}"
+                },
+                "content": [
+                  {
+                    "type": "text/html",
+                    "value": "The <strong>CloudFront Cache Invalidation has <span style=\"color:red;\">FAILED</span></strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
+                  }
+                ]
+              }'
