@@ -206,90 +206,65 @@ jobs:
           send_email "$msg"
 
   Deploy:
-      name: Deploy_Nuxt_App
-      runs-on: self-hosted
-      needs: Manual_Approval
-      if: needs.Manual_Approval.outputs.approval_status == 'approved'
-      steps:
-        - name: Check if deployment script exists
-          id: chceck_sript
-          run: |
-            if [ ! -f ${{ env.Script_Path }} ]; then
-              echo "Deployment script not found"
-              exit 1
-            fi
+    name: Deploy_Nuxt_App
+    runs-on: self-hosted
+    needs: Manual_Approval
+    if: needs.Manual_Approval.outputs.approval_status == 'approved'
+    steps:
+      - name: Get Start Timestamp
+        run: echo "TIMESTAMP_START=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
   
-        - name: Run deployment script on self-hosted runner
-          run: |
-            sudo bash ${{ env.Script_Path }}
+      - name: Check if deployment script exists
+        run: |
+          if [ ! -f "${{ env.Script_Path }}" ]; then
+            echo "Deployment script not found"
+            exit 1
+          fi
   
-        - name: Get current timestamp
-          id: timestamp
-          run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+      - name: Run Deployment Script
+        run: |
+          sudo bash ${{ env.Script_Path }}
   
-        - name: Send Deployment Completed Email via SendGrid
-          if: success()
-          run: |
+      - name: Get End Timestamp
+        if: always()
+        run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+      - name: Send Deployment Result Email via SendGrid
+        if: always()
+        run: |
+          send_email() {
+            local message="$1"
+  
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
               --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
               --header "Content-Type: application/json" \
-              --data '{
-                "personalizations":  [
-                  {
-                    "to": [
-                      {
-                        "email":"${{ env.email_to }}"
-                      }
-                    ],
-                    "subject": "${{ env.email_subject }}"
-                  }
-                ],
-                "from": {
-                  "email":"${{ env.email_from }}"
-                },
-                "content": [
-                  {
-                    "type": "text/html",
-                    "value": "The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
-                  }
-                ]
-              }'
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
   
-        - name: Get current timestamp (Failure timestamp)
-          if: always()
-          id: timestamp_failed
-          run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          
-        - name: Send Deployment Failure Notification By Mail
-          if: failure()
-          run: |
-            echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-            curl --request POST \
-              --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
-              --header "Content-Type: application/json" \
-              --data '{
-                "personalizations": [
-                  {
-                    "to": [
-                      {
-                        "email": "${{ env.email_to }}"
-                      }
-                    ],
-                    "subject": "${{ env.email_subject }}"
-                  }
-                ],
-                "from": {
-                  "email": "${{ env.email_from }}"
-                },
-                "content": [
-                  {
-                    "type": "text/html",
-                    "value": "The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
-                  }
-                ]
-              }'
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>
+            PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>
+            Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+          else
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>
+            PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>
+            Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong><br>
+            Please visit Actions tab to view the Workflow logs."
+          fi
+  
+          send_email "$msg"
+
               
   Cloudfront:
       name: Invalidate_CloudFront_Cache
