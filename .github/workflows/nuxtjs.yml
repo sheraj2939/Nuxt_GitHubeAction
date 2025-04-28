@@ -153,7 +153,7 @@ jobs:
           elif [ "$status" == "deny" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: ❌ <strong>Denied</strong><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           else
-            message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT or 🛑 CANCELLED or 🚨 FAILED,</strong> Please visit Actions tab to view the Workflow<br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
+            message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT or 🛑 CANCELLED or 🚨 FAILED</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
           fi
 
           curl --request POST \
