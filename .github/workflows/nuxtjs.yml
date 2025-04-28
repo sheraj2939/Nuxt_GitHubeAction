@@ -31,6 +31,7 @@ jobs:
       approval_status: ${{ steps.set_approval.outputs.approval_status }}
     steps:
       - name: Define send_email function
+        shell: bash
         run: |
           send_email() {
             local message="$1"
@@ -40,20 +41,23 @@ jobs:
               --header "Content-Type: application/json" \
               --data "{
                 \"personalizations\": [{
-                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"to\": [{\"email\":\"${{ env.email_to }}\"}],
                   \"subject\": \"${{ env.email_subject }}\"
                 }],
-                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"from\": { \"email\": \"${{ env.email_from }}\" },
                 \"content\": [{
                   \"type\": \"text/html\",
                   \"value\": \"$message\"
                 }]
               }"
           }
+          export -f send_email
+
+      - name: Get timestamp
+        run: echo "TIMESTAMP_START=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
       - name: Send Deployment Started Email
-        run: |
-          send_email "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
+        run: send_email "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
 
       - name: Create Approval Issue
         id: create_issue
@@ -67,8 +71,7 @@ jobs:
           echo "ISSUE_URL=$(echo "$response" | jq -r '.html_url')" >> $GITHUB_ENV
 
       - name: Send Approval Request Email
-        run: |
-          send_email "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
+        run: send_email "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
 
       - name: Wait for Approval
         id: set_approval
@@ -124,21 +127,31 @@ jobs:
         if: always()
         run: |
           status="${{ steps.set_approval.outputs.approval_status }}"
+
           if [ "$status" == "approved" ]; then
             echo "Approval is successful. No email will be sent."
             exit 0
           fi
+
           if [ "$status" == "deny" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: ❌ <strong>Denied</strong><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           else
             message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT / 🛑 CANCELLED / 🚨 FAILED</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
           fi
+
+          # Call send_email function with the generated message
           send_email "$message"
+
 
       - name: Send Failure Notification Email if Approval Fails or Timeout
         if: always() && (steps.set_approval.outcome != 'success' || github.event.workflow_run.conclusion == 'cancelled')
         run: |
-          send_email "The pipeline has <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
+          echo "Approval outcome: failure or canceled"
+
+          msg="The pipeline has <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
+
+          # Send the email for approval failure, timeout, or cancel
+          send_email "$msg"
 
   Deploy:
     name: Deploy_Nuxt_App
@@ -146,26 +159,113 @@ jobs:
     needs: Manual_Approval
     if: needs.Manual_Approval.outputs.approval_status == 'approved'
     steps:
+      - name: Define send_email function
+        shell: bash
+        run: |
+          send_email() {
+            local message="$1"
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
+          export -f send_email
+
       - name: Get Current Timestamp
         run: echo "TIMESTAMP_START=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-  
+
       - name: Check if deployment script exists
         run: |
           if [ ! -f "${{ env.Script_Path }}" ]; then
             echo "Deployment script not found"
             exit 1
           fi
-  
+
       - name: Run Deployment Script
         run: |
           sudo bash ${{ env.Script_Path }}
-  
+
       - name: Get End Timestamp
         if: always()
         run: echo "TIMESTAMP_END=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-  
+
       - name: Send Deployment Result Email via SendGrid
         if: always()
         run: |
-          message="Deployment status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a>: <strong style='color:green;'>Success</strong><br>Deployment started at: <strong>${{ env.TIMESTAMP_START }}</strong><br>Deployment finished at: <strong>${{ env.TIMESTAMP_END }}</strong><br>Deployment logs can be found on your server."
-          send_email "$message"
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>Nuxt deployment has Completed on Server</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+          else
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit Actions tab to view the Workflow logs."
+          fi
+
+          send_email "$msg"
+
+
+  Cloudfront:
+    name: Invalidate_CloudFront_Cache
+    runs-on: self-hosted
+    needs: Deploy
+    if: success()
+    steps:
+      - name: Define send_email function
+        shell: bash
+        run: |
+          send_email() {
+            local message="$1"
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
+          export -f send_email
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          echo "Invalidating CloudFront cache..."
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+
+      - name: Get End Timestamp
+        if: always()
+        run: echo "TIMESTAMP_END=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
+      - name: Send CloudFront Cache Invalidation Result Email via SendGrid
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>CloudFront Cache Invalidation has Completed.</strong><br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>"
+          else
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the cloudfront stage.<br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit AWS Cloudfront and CloudWatch tab to view the logs."
+          fi
+
+          send_email "$msg"
