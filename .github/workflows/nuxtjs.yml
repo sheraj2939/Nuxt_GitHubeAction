@@ -280,7 +280,7 @@ jobs:
   
       - name: Get End Timestamp
         if: always()
-        run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        run: echo "TIMESTAMP_END=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
   
       - name: Send CloudFront Cache Invalidation Result Email via SendGrid
         if: always()
