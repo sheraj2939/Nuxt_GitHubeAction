@@ -275,7 +275,7 @@ jobs:
         run: |
           echo "Invalidating CloudFront cache..."
           aws cloudfront create-invalidation \
-            --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
   
       - name: Get End Timestamp
