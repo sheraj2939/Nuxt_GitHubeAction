@@ -253,14 +253,9 @@ jobs:
           }
   
           if [ "${{ job.status }}" == "success" ]; then
-            msg="The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>
-            PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>
-            Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+            msg="The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
           else
-            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>
-            PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>
-            Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong><br>
-            Please visit Actions tab to view the Workflow logs."
+            msg="The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
           fi
   
           send_email "$msg"
