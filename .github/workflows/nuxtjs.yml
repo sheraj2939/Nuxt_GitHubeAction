@@ -147,7 +147,28 @@ jobs:
       - name: Send Approval Result Email
         if: always()
         run: |
+          send_email() {
+            local message=$1
+      
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\":\"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": { \"email\": \"${{ env.email_from }}\" },
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"${message}\"
+                }]
+              }"
+          }
+      
           status="${{ steps.set_approval.outputs.approval_status }}"
+          
           if [ "$status" == "approved" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: ✅ <strong>Approved</strong><br>Approved by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
           elif [ "$status" == "deny" ]; then
@@ -155,22 +176,10 @@ jobs:
           else
             message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT or 🛑 CANCELLED or 🚨 FAILED</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
           fi
+      
+          # Call send_email function with the generated message
+          send_email "$message"
 
-          curl --request POST \
-            --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
-            --header "Content-Type: application/json" \
-            --data "{
-              \"personalizations\": [{
-                \"to\": [{\"email\":\"${{ env.email_to }}\"}],
-                \"subject\": \"${{ env.email_subject }}\"
-              }],
-              \"from\": { \"email\": \"${{ env.email_from }}\" },
-              \"content\": [{
-                \"type\": \"text/html\",
-                \"value\": \"$message\"
-              }]
-            }"
             
       - name: Send Failure Notification Email if Approval Fails or Timeout
         if: always() && (steps.set_approval.outcome != 'success' || github.event.workflow_run.conclusion == 'cancelled')
