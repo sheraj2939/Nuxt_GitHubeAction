@@ -308,7 +308,7 @@ jobs:
           if [ "${{ job.status }}" == "success" ]; then
             msg="The <strong>CloudFront Cache Invalidation has Completed.</strong><br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>"
           else
-            msg="The <strong>pipeline has <span style=\'color:red;'>FAILED</span></strong> at the cloudfront stage.<br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit AWS Cloudfront and CloudWatch tab to view the logs."
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the cloudfront stage.<br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit AWS Cloudfront and CloudWatch tab to view the logs."
           fi
   
           send_email "$msg"
