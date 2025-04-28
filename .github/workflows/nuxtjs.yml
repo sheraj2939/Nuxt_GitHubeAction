@@ -33,33 +33,22 @@ jobs:
       - name: Define send_email function
         run: |
           send_email() {
-            curl -s --request POST \
+            local message="$1"
+            curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: Bearer $SENDGRID_API_KEY" \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
               --header "Content-Type: application/json" \
-              --data @- <<EOF
-            {
-              "personalizations": [
-                {
-                  "to": [
-                    {
-                      "email": "$email_to"
-                    }
-                  ],
-                  "subject": "$email_subject"
-                }
-              ],
-              "from": {
-                "email": "$email_from"
-              },
-              "content": [
-                {
-                  "type": "text/html",
-                  "value": "$1"
-                }
-              ]
-            }
-            EOF
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
           }
 
       - name: Send Deployment Started Email
