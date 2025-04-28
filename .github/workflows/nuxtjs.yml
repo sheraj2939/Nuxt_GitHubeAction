@@ -168,6 +168,10 @@ jobs:
           }
       
           status="${{ steps.set_approval.outputs.approval_status }}"
+          if [ "$status" == "approved" ]; then
+            echo "Approval is successful. No email will be sent."
+            exit 0
+          fi
           
           if [ "$status" == "deny" ]; then
             message="Approval status for PR #${{ env.PR_NUMBER }}: ❌ <strong>Denied</strong><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
