@@ -308,7 +308,6 @@ jobs:
           if [ "${{ job.status }}" == "success" ]; then
             msg="complete>"
           else
-            msg="The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit AWS Cloudfront and CloudWatch tab to view the logs."
-          fi
+            msg="The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong>"
   
           send_email "$msg"
