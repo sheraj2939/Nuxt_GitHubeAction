@@ -220,7 +220,7 @@ jobs:
   
       - name: Run Deployment Script
         run: |
-          sudo bash ${{ env.Script_Path }} || exit 1
+          sudo bash ${{ env.Script_Path }}
   
       - name: Get End Timestamp
         if: always()
@@ -276,7 +276,7 @@ jobs:
           echo "Invalidating CloudFront cache..."
           aws cloudfront create-invalidation \
             --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/*" || exit 1
+            --paths "/*"
   
       - name: Get End Timestamp
         if: always()
