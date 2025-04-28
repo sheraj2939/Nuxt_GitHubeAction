@@ -253,7 +253,7 @@ jobs:
           }
   
           if [ "${{ job.status }}" == "success" ]; then
-            msg="The <strong>deployment has Completed</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+            msg="The <strong>Nuxt deployment has Completed on Server</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
           else
             msg="The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit Actions tab to view the Workflow logs."
           fi
@@ -262,90 +262,56 @@ jobs:
 
               
   Cloudfront:
-      name: Invalidate_CloudFront_Cache
-      runs-on: self-hosted
-      needs: Deploy
-      if: success()
-      steps:
-        - name: Configure AWS Credentials
-          uses: aws-actions/configure-aws-credentials@v2
-          with:
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-region: ${{ env.AWS_REGION }}
-
-        - name: Invalidate CloudFront Cache
-          run: |
-            echo "Invalidating CloudFront cache..."
-            aws cloudfront create-invalidation \
-              --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
-              --paths "/*"
-                - name: Get current timestamp
-                
-        - name: Get current timestamp
-          id: timestamp
-          run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+    name: Invalidate_CloudFront_Cache
+    runs-on: self-hosted
+    needs: Deploy
+    if: success()
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
   
-        - name: Send CloudFront Cache Invalidation Completed Email via SendGrid
-          if: success()
-          run: |
+      - name: Invalidate CloudFront Cache
+        run: |
+          echo "Invalidating CloudFront cache..."
+          aws cloudfront create-invalidation \
+            --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+            --paths "/*"
+  
+      - name: Get End Timestamp
+        if: always()
+        run: echo "TIMESTAMP_END=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+      - name: Send CloudFront Cache Invalidation Result Email via SendGrid
+        if: always()
+        run: |
+          send_email() {
+            local message="$1"
+  
             curl --request POST \
               --url https://api.sendgrid.com/v3/mail/send \
               --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
               --header "Content-Type: application/json" \
-              --data '{
-                "personalizations":  [
-                  {
-                    "to": [
-                      {
-                        "email":"${{ env.email_to }}"
-                      }
-                    ],
-                    "subject": "${{ env.email_subject }}"
-                  }
-                ],
-                "from": {
-                  "email":"${{ env.email_from }}"
-                },
-                "content": [
-                  {
-                    "type": "text/html",
-                    "value": "The <strong>CloudFront Cache Invalidation has Completed</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>"
-                  }
-                ]
-              }'
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
   
-        - name: Get current timestamp (Failure timestamp)
-          if: always()
-          id: timestamp_failed
-          run: echo "TIMESTAMP_FAILED=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          
-        - name: Send CloudFront Cache Invalidation Failure Notification By Mail
-          if: failure()
-          run: |
-            echo "TIMESTAMP_failed=timestamp::$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-            curl --request POST \
-              --url https://api.sendgrid.com/v3/mail/send \
-              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
-              --header "Content-Type: application/json" \
-              --data '{
-                "personalizations": [
-                  {
-                    "to": [
-                      {
-                        "email": "${{ env.email_to }}"
-                      }
-                    ],
-                    "subject": "${{ env.email_subject }}"
-                  }
-                ],
-                "from": {
-                  "email": "${{ env.email_from }}"
-                },
-                "content": [
-                  {
-                    "type": "text/html",
-                    "value": "The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the cloudfront stage<br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
-                  }
-                ]
-              }'
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>CloudFront Cache Invalidation has Completed</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>"
+          else
+            msg="The <strong>pipeline has <span style=\"color:red;\">FAILED</span></strong> at the cloudfront stage.<br>Timestamp: <strong>${{ env.TIMESTAMP_FAILED }}</strong><br>Please visit AWS Cloudfront and Cloud Watch tab to view the logs."
+          fi
+  
+          send_email "$msg"
