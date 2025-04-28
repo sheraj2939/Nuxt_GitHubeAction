@@ -57,7 +57,7 @@ jobs:
         run: echo "TIMESTAMP_START=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
       - name: Send Deployment Started Email
-        run: send_email "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
+        run: send_email "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by:<strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp:<strong>${{ env.TIMESTAMP_START }}</strong>"
 
       - name: Create Approval Issue
         id: create_issue
@@ -71,7 +71,7 @@ jobs:
           echo "ISSUE_URL=$(echo "$response" | jq -r '.html_url')" >> $GITHUB_ENV
 
       - name: Send Approval Request Email
-        run: send_email "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
+        run: send_email "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by:<strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
 
       - name: Wait for Approval
         id: set_approval
