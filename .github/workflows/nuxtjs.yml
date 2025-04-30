@@ -11,6 +11,8 @@ env:
   email_from: "devops@houzeo.com"
   email_to: "sheraj.ahamad@houzeo.com"
   email_sendgrid_key: ${{ secrets.SENDGRID_API_KEY }}
+  #email_subject: "🚀 Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
+  email_subject: ${{ format('🚀 Nuxt Production Deployment | PR #{0} | {1}', github.event.pull_request.number, github.event.pull_request.title) }}
   PR_NUMBER: ${{ github.event.pull_request.number }}
   PR_URL: ${{ github.event.pull_request.html_url }}
   PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
