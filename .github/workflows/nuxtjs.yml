@@ -1,4 +1,5 @@
-name: Auto-pull on Nuxt Production Server, on PR merge for release-prod
+name: 🚀 Nuxt App CI/CD Deployment
+
 on:
   pull_request:
     branches:
@@ -6,156 +7,333 @@ on:
     types:
       - closed
 
-jobs:
-  manual_approval:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
-    runs-on: ubuntu-latest
-    outputs:
-      approval_status: ${{ steps.wait_for_approval.outputs.approval_status }}
-    env:
-      EMAIL_FROM: devops@houzeo.com
-      EMAIL_TO: sheraj.ahamad@houzeo.com
-      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-      TOKEN: ${{ secrets.TOKEN_GITHUB }}
-      AUTHORIZED_APPROVERS: ${{ secrets.AUTHORIZED_APPROVERS }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-      PR_URL: ${{ github.event.pull_request.html_url }}
-      PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
-      REPO_OWNER: ${{ github.event.repository.owner.login }}
-      REPO_NAME: ${{ github.event.repository.name }}
-      EMAIL_SUBJECT: "Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
-    steps:
-      - name: Set start timestamp
-        run: echo "TIMESTAMP_START=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+env:
+  email_from: "devops@houzeo.com"
+  email_to: "sheraj.ahamad@houzeo.com"
+  email_sendgrid_key: ${{ secrets.SENDGRID_API_KEY }}
+  #email_subject: "🚀 Nuxt Production Deployment | PR #${{ github.event.pull_request.number }} | ${{ github.event.pull_request.title }}"
+  email_subject: ${{ format('🚀 Nuxt Production Deployment | PR #{0} | {1}', github.event.pull_request.number, github.event.pull_request.title) }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  PR_URL: ${{ github.event.pull_request.html_url }}
+  PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
+  REPO_OWNER: ${{ github.event.repository.owner.login }}
+  REPO_NAME: ${{ github.event.repository.name }}
+  TOKEN: ${{ secrets.TOKEN_GITHUB }}
+  AWS_REGION: "us-east-1"
+  CLOUDFRONT_DISTRIBUTION_ID: "E1EIX7TDI2X6Z5"
+  Script_Path: "/home/Houzeo/nuxt-deploy.sh"
+  APPROVED: false
 
-      - name: Send Deployment Started Email via SendGrid
+jobs:
+  Manual_Approval:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
+    outputs:
+      approval_status: ${{ steps.set_approval.outputs.approval_status }}
+    steps:
+      - name: Get timestamp
+        run: echo "TIMESTAMP_START=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
+      - name: Send Deployment Started Email
         run: |
           curl --request POST \
             --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
+            --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
             --header "Content-Type: application/json" \
             --data '{
-              "personalizations": [
-                {
-                  "to": [
-                    {
-                      "email": "'"$EMAIL_TO"'"
-                    }
-                  ],
-                  "subject": "'"$EMAIL_SUBJECT"'"
-                }
-              ],
-              "from": {
-                "email": "'"$EMAIL_FROM"'"
-              },
-              "content": [
-                {
-                  "type": "text/html",
-                  "value": "Deployment has started for PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br>Merged by: <strong>\"$PR_MERGED_BY\"</strong><br>Timestamp: <strong>\"$TIMESTAMP_START\"</strong>"
-                }
-              ]
+              "personalizations": [{
+                "to": [{"email":"${{ env.email_to }}"}],
+                "subject": "${{ env.email_subject }}"
+              }],
+              "from": { "email":"${{ env.email_from }}" },
+              "content": [{
+                "type": "text/html",
+                "value": "The <strong>deployment has started</strong> for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_START }}</strong>"
+              }]
             }'
 
       - name: Create Approval Issue
         id: create_issue
         run: |
-          ISSUE_BODY="Please approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br><ul><li>Type <strong>approved</strong></li><li>Type <strong>deny</strong></li></ul>"
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: token $TOKEN" \
-            -d "{\"title\":\"Deployment Approval for PR $PR_NUMBER\", \"body\":\"$ISSUE_BODY\"}" \
-            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues")
-          ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number')
-          ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+          body="Please approve or deny the deployment of PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br><br><br><ul><li>Type: <strong>Approved</strong> for approving the request</li><li>Type: <strong>Deny</strong> for denying the request</li></ul><br><span><strong>Note:</strong> Add the comment and click on 'Close with Comment' button</span>"
+          response=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"title\":\"Deployment Approval for PR ${{ env.PR_NUMBER }}\", \"body\":\"$body\"}" \
+            "https://api.github.com/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/issues")
+            
+          ISSUE_NUMBER=$(echo "$response" | jq -r '.number')
+          ISSUE_URL=$(echo "$response" | jq -r '.html_url')
+
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
           echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
 
-      - name: Send Approval Email via SendGrid
+      - name: Send Approval Request Email
         run: |
           curl --request POST \
             --url https://api.sendgrid.com/v3/mail/send \
-            --header "Authorization: Bearer $SENDGRID_API_KEY" \
+            --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
             --header "Content-Type: application/json" \
             --data '{
-              "personalizations": [
-                {
-                  "to": [
-                    {
-                      "email": "'"$EMAIL_TO"'"
-                    }
-                  ],
-                  "subject": "'"$EMAIL_SUBJECT"'"
-                }
-              ],
-              "from": {
-                "email": "'"$EMAIL_FROM"'"
-              },
-              "content": [
-                {
-                  "type": "text/html",
-                  "value": "Please approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a><br>Check issue <a href='\"$ISSUE_URL\"'>#\"$ISSUE_NUMBER\"</a>"
-                }
-              ]
+              "personalizations": [{
+                "to": [{"email":"${{ env.email_to }}"}],
+                "subject": "${{ env.email_subject }}"
+              }],
+              "from": { "email":"${{ env.email_from }}" },
+              "content": [{
+                "type": "text/html",
+                "value": "Please approve or reject the workflow for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
+              }]
             }'
 
       - name: Wait for Approval
-        id: wait_for_approval
+        id: set_approval
         timeout-minutes: 15
+        env:
+          AUTHORIZED_APPROVERS: ${{ secrets.AUTHORIZED_APPROVERS }}
         run: |
-          echo "approval_status=pending" >> $GITHUB_OUTPUT
-          echo "Waiting for approval on issue $ISSUE_NUMBER..."
+          echo "Waiting for approval..."
+          SECONDS=0
           REMINDER_SENT=false
-          for i in {1..60}; do
-            RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
-              "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$ISSUE_NUMBER/comments")
-            COMMENTS=$(echo "$RESPONSE" | jq -r '.[].body')
-            AUTHORS=$(echo "$RESPONSE" | jq -r '.[].user.login')
-            INDEX_APPROVED=$(echo "$COMMENTS" | grep -in "^approved$" | tail -1 | cut -d':' -f1)
-            INDEX_DENY=$(echo "$COMMENTS" | grep -in "^deny$" | tail -1 | cut -d':' -f1)
-            if [ -n "$INDEX_APPROVED" ]; then
-              AUTHOR=$(echo "$AUTHORS" | sed -n "${INDEX_APPROVED}p")
-              if [[ ",$AUTHORIZED_APPROVERS," == *",$AUTHOR,"* ]]; then
-                echo "Approved by $AUTHOR"
+          APPROVAL_STATUS=""
+          while [ -z "$APPROVAL_STATUS" ] && [ $SECONDS -lt 900 ]; do
+            comments=$(curl -s -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
+            comment_texts=$(echo "$comments" | jq -r '.[].body')
+            authors=$(echo "$comments" | jq -r '.[].user.login')
+
+            index_approved=$(echo "$comment_texts" | grep -in 'approved' | cut -d: -f1 | tail -n1)
+            index_deny=$(echo "$comment_texts" | grep -in 'deny' | cut -d: -f1 | tail -n1)
+
+            if [ -n "$index_approved" ]; then
+              author=$(echo "$authors" | sed -n "${index_approved}p")
+              if [[ ",${AUTHORIZED_APPROVERS}," == *",$author,"* ]]; then
                 echo "approval_status=approved" >> $GITHUB_OUTPUT
-                echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
-                break
+                echo "AUTHOR=$author" >> $GITHUB_ENV
+                echo "TIMESTAMP_APPROVED_DENIED=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+                exit 0
               fi
-            elif [ -n "$INDEX_DENY" ]; then
-              AUTHOR=$(echo "$AUTHORS" | sed -n "${INDEX_DENY}p")
-              if [[ ",$AUTHORIZED_APPROVERS," == *",$AUTHOR,"* ]]; then
-                echo "Denied by $AUTHOR"
+            elif [ -n "$index_deny" ]; then
+              author=$(echo "$authors" | sed -n "${index_deny}p")
+              if [[ ",${AUTHORIZED_APPROVERS}," == *",$author,"* ]]; then
                 echo "approval_status=deny" >> $GITHUB_OUTPUT
-                echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
-                break
+                echo "AUTHOR=$author" >> $GITHUB_ENV
+                echo "TIMESTAMP_APPROVED_DENIED=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+                exit 0
               fi
             fi
-            if [ "$i" -eq 7 ] && [ "$REMINDER_SENT" = false ]; then
+
+            if [ $SECONDS -ge 420 ] && [ "$REMINDER_SENT" = false ]; then
               echo "Sending reminder email..."
               curl --request POST \
                 --url https://api.sendgrid.com/v3/mail/send \
-                --header "Authorization: Bearer $SENDGRID_API_KEY" \
+                --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
                 --header "Content-Type: application/json" \
                 --data '{
-                  "personalizations": [
-                    {
-                      "to": [
-                        {
-                          "email": "'"$EMAIL_TO"'"
-                        }
-                      ],
-                      "subject": "Reminder: Deployment Approval for PR #'"${{ github.event.pull_request.number }}"'"
-                    }
-                  ],
-                  "from": {
-                    "email": "'"$EMAIL_FROM"'"
-                  },
-                  "content": [
-                    {
-                      "type": "text/html",
-                      "value": "This is a reminder to approve or deny the deployment of PR <a href='\"$PR_URL\"'>#\"${PR_NUMBER}\"</a>. Please check the issue <a href='\"$ISSUE_URL\"'>#\"$ISSUE_NUMBER\"</a>."
-                    }
-                  ]
+                  "personalizations": [{
+                    "to": [{"email":"${{ env.email_to }}"}],
+                    "subject": "[Reminder] ${{ env.email_subject }}"
+                  }],
+                  "from": { "email":"${{ env.email_from }}" },
+                  "content": [{
+                    "type": "text/html",
+                    "value": "<strong>Reminder:</strong> Approval still pending for PR <a href=\"${{ env.PR_URL }}\">#${{ env.PR_NUMBER }}</a><br>Check Issue: <a href=\"${{ env.ISSUE_URL }}\">#${{ env.ISSUE_NUMBER }}</a> and approve or deny"
+                  }]
                 }'
               REMINDER_SENT=true
             fi
+
             sleep 15
           done
+
+          # Set IST timestamp for timeout too
+          echo "TIMESTAMP_APPROVED_DENIED=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "approval_status=timeout" >> $GITHUB_OUTPUT
+
+      - name: Send Approval Result Email
+        if: always()
+        run: |
+          send_email() {
+            local message=$1
+      
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\":\"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": { \"email\": \"${{ env.email_from }}\" },
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"${message}\"
+                }]
+              }"
+          }
+      
+          status="${{ steps.set_approval.outputs.approval_status }}"
+
+          #if [ "$status" == "approved" ]; then
+          #  message="Approval status for PR #${{ env.PR_NUMBER }}: ✅ <strong>Approved</strong><br>Approved by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
+          #elif [ "$status" == "deny" ]; then
+          #  message="Approval status for PR #${{ env.PR_NUMBER }}: ❌ <strong>Denied</strong><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
+          #else
+          #  message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT / 🛑 CANCELLED / 🚨 FAILED</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
+          #fi
+          
+          if [ "$status" == "approved" ]; then
+            echo "Approval is successful. No email will be sent."
+            exit 0
+          fi
+          
+          if [ "$status" == "deny" ]; then
+            message="Approval status for PR #${{ env.PR_NUMBER }}: ❌ <strong>Denied</strong><br>Denied by: <strong>${{ env.AUTHOR }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_APPROVED_DENIED }}</strong>"
+          else
+            message="Approval status for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a> : <strong>⏳ TIMEDOUT / 🛑 CANCELLED / 🚨 FAILED</strong><br>Merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Check issue <a href='${{ env.ISSUE_URL }}'>#${{ env.ISSUE_NUMBER }}</a>"
+          fi
+      
+          # Call send_email function with the generated message
+          send_email "$message"
+
+            
+      - name: Send Failure Notification Email if Approval Fails or Timeout
+        if: always() && (steps.set_approval.outcome != 'success' || github.event.workflow_run.conclusion == 'cancelled')
+        run: |
+          echo "Approval outcome: failure or canceled"
+      
+          send_email() {
+            local message=$1
+      
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"${message}\"
+                }]
+              }"
+          }
+      
+          msg="The pipeline has <strong style='color:red;'>FAILED</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>Please visit Actions tab to view the Workflow"
+      
+          # Send the email for approval failure, timeout, or cancel
+          send_email "$msg"
+
+  Deploy:
+    name: Deploy_Nuxt_App
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
+    needs: Manual_Approval
+    if: needs.Manual_Approval.outputs.approval_status == 'approved'
+    steps:
+      - name: Get Current Timestamp
+        run: echo "TIMESTAMP_START=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+      - name: Check if deployment script exists
+        run: |
+          if [ ! -f "${{ env.Script_Path }}" ]; then
+            echo "Deployment script not found"
+            exit 1
+          fi
+  
+      - name: Run Deployment Script
+        run: |
+          sudo bash ${{ env.Script_Path }}
+  
+      - name: Get End Timestamp
+        if: always()
+        run: echo "TIMESTAMP_END=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+      - name: Send Deployment Result Email via SendGrid
+        if: always()
+        run: |
+          send_email() {
+            local message="$1"
+  
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
+  
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>Nuxt deployment has Completed on Server</strong> for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong>"
+          else
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the deploy stage for PR <a href='${{ env.PR_URL }}'>#${{ env.PR_NUMBER }}</a><br>PR merged by: <strong>${{ env.PR_MERGED_BY }}</strong><br>Timestamp: <strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit Actions tab to view the Workflow logs."
+          fi
+  
+          send_email "$msg"
+
+              
+  Cloudfront:
+    name: Invalidate_CloudFront_Cache
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
+    needs: Deploy
+    if: success()
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+  
+      - name: Invalidate CloudFront Cache
+        run: |
+          echo "Invalidating CloudFront cache..."
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+  
+      - name: Get End Timestamp
+        if: always()
+        run: echo "TIMESTAMP_END=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+  
+      - name: Send CloudFront Cache Invalidation Result Email via SendGrid
+        if: always()
+        run: |
+          send_email() {
+            local message="$1"
+  
+            curl --request POST \
+              --url https://api.sendgrid.com/v3/mail/send \
+              --header "Authorization: Bearer ${{ env.email_sendgrid_key }}" \
+              --header "Content-Type: application/json" \
+              --data "{
+                \"personalizations\": [{
+                  \"to\": [{\"email\": \"${{ env.email_to }}\"}],
+                  \"subject\": \"${{ env.email_subject }}\"
+                }],
+                \"from\": {\"email\": \"${{ env.email_from }}\"},
+                \"content\": [{
+                  \"type\": \"text/html\",
+                  \"value\": \"$message\"
+                }]
+              }"
+          }
+  
+          if [ "${{ job.status }}" == "success" ]; then
+            msg="The <strong>CloudFront Cache Invalidation has Completed.</strong><br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>"
+          else
+            msg="The <strong>pipeline has <span style='color:red;'>FAILED</span></strong> at the cloudfront stage.<br>Timestamp:<strong>${{ env.TIMESTAMP_END }}</strong><br>Please visit AWS Cloudfront and CloudWatch tab to view the logs."
+          fi
+  
+          send_email "$msg"
