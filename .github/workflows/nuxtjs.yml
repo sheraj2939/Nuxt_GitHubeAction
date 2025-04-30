@@ -26,7 +26,7 @@ env:
 jobs:
   Manual_Approval:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
-    runs-on: [self-hosted, Runner-1]
+    runs-on: self-hosted
     outputs:
       approval_status: ${{ steps.set_approval.outputs.approval_status }}
     steps:
