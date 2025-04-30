@@ -26,7 +26,7 @@ env:
 jobs:
   Manual_Approval:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release-prod'
-    runs-on: self-hosted
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
     outputs:
       approval_status: ${{ steps.set_approval.outputs.approval_status }}
     steps:
@@ -224,7 +224,7 @@ jobs:
 
   Deploy:
     name: Deploy_Nuxt_App
-    runs-on: self-hosted
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
     needs: Manual_Approval
     if: needs.Manual_Approval.outputs.approval_status == 'approved'
     steps:
@@ -280,7 +280,7 @@ jobs:
               
   Cloudfront:
     name: Invalidate_CloudFront_Cache
-    runs-on: self-hosted
+    runs-on: [self-hosted, NUXT-PROD-RUNNER]
     needs: Deploy
     if: success()
     steps:
